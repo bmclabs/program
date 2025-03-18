@@ -115,19 +115,23 @@ pub mod battle_memecoin {
             match_account.total_bets_fighter1
         };
 
-        // Calculate prize pool (95% of losing bets)
-        let fee = total_losing_bets * 5 / 100; // 5% fee
-        let prize_pool = total_losing_bets - fee;
+        // Calculate fee (5% of losing bets) ensuring proper precision
+        let fee = (total_losing_bets as u128 * 5 / 100) as u64;
+        msg!("Debug - Total losing bets: {}, Fee calculated: {}", total_losing_bets, fee);
+        
+        // Transfer fee to treasury
+        **ctx.accounts.house_wallet.to_account_info().try_borrow_mut_lamports()? -= fee;
+        **ctx.accounts.treasury.try_borrow_mut_lamports()? += fee;
 
         match_account.winner = Some(winner.clone());
-        match_account.prize_pool = prize_pool;
+        match_account.prize_pool = total_losing_bets - fee;
         match_account.status = MatchStatus::Completed;
 
         msg!(
-            "Match ended - ID: {}, Winner: {}, Prize Pool: {}, Fee: {}",
+            "Match ended - ID: {}, Winner: {}, Prize Pool: {}, Fee transferred to treasury: {}",
             match_id,
             winner,
-            prize_pool,
+            match_account.prize_pool,
             fee
         );
 
@@ -341,8 +345,13 @@ pub struct EndMatch<'info> {
     #[account(mut)]
     pub house_wallet: Account<'info, HouseWallet>,
     
+    /// CHECK: This account will receive the fee
     #[account(mut)]
+    pub treasury: AccountInfo<'info>,
+    
     pub authority: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

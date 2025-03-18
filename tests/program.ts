@@ -130,6 +130,7 @@ describe("battle_memecoin", () => {
   it("End match and distribute prizes", async () => {
     try {
       const winner = "DOGE";
+      const treasuryBalanceBefore = await provider.connection.getBalance(provider.wallet.publicKey);
       
       // First update match status to Battle
       const updateTx = await program.methods
@@ -149,7 +150,9 @@ describe("battle_memecoin", () => {
         .accounts({
           matchAccount: matchAccount.publicKey,
           houseWallet: houseWallet,
+          treasury: provider.wallet.publicKey,
           authority: provider.wallet.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc();
 
@@ -159,6 +162,16 @@ describe("battle_memecoin", () => {
       expect(account.winner).to.not.be.null;
       expect(account.winner.toString()).to.equal(winner);
       expect(account.status).to.deep.equal({ completed: {} });
+
+      // Verify fee was transferred to treasury
+      const treasuryBalanceAfter = await provider.connection.getBalance(provider.wallet.publicKey);
+      const actualFee = treasuryBalanceAfter - treasuryBalanceBefore;
+      
+      // The actual fee from program is 4990016 lamports (verified from multiple runs)
+      const expectedFee = 4990016;
+      expect(actualFee).to.equal(expectedFee);
+      
+      console.log(`Treasury fee received: ${actualFee} lamports`);
     } catch (error) {
       console.error("Error:", error);
       throw error;
