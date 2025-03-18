@@ -136,6 +136,7 @@ pub mod battle_memecoin {
 
     pub fn claim_prize(ctx: Context<ClaimPrize>, match_id: String) -> Result<()> {
         require!(!ctx.accounts.house_wallet.paused, BattleError::ProgramPaused);
+        require!(ctx.accounts.authority.key() == ctx.accounts.house_wallet.authority, BattleError::Unauthorized);
         
         let match_account = &mut ctx.accounts.match_account;
         require!(match_account.match_id == match_id, BattleError::InvalidMatchId);
@@ -150,75 +151,109 @@ pub mod battle_memecoin {
         };
         let prize_pool = match_account.prize_pool;
         
-        // Find the bet for this claimer
-        let bet = match_account.bets.iter_mut()
-            .find(|bet| bet.bettor == ctx.accounts.claimer.key())
-            .ok_or(BattleError::NoBet)?;
-            
-        require!(!bet.claimed, BattleError::AlreadyClaimed);
-        require!(bet.fighter == winner, BattleError::NotAWinner);
-
-        // Calculate prize share
-        let prize_share = (bet.amount as u128 * prize_pool as u128 / total_winning_bets as u128) as u64;
-        let total_payout = bet.amount + prize_share;
-
-        // Transfer SOL using try_borrow_mut_lamports
-        **ctx.accounts.house_wallet.to_account_info().try_borrow_mut_lamports()? -= total_payout;
-        **ctx.accounts.claimer.try_borrow_mut_lamports()? += total_payout;
-
-        bet.claimed = true;
-
-        msg!(
-            "Prize claimed - Match: {}, Amount: {}, Prize Share: {}",
-            match_id,
-            bet.amount,
-            prize_share
-        );
+        // Process all unclaimed winning bets
+        let mut remaining_accounts = ctx.remaining_accounts.iter();
+        let mut total_claimed = 0;
+        let mut claimed_count = 0;
+        
+        for bet in match_account.bets.iter_mut() {
+            if !bet.claimed && bet.fighter == winner {
+                // Get bettor's account from remaining accounts
+                let bettor_account = next_account_info(&mut remaining_accounts)
+                    .map_err(|_| error!(BattleError::InvalidRemainingAccounts))?;
+                
+                require!(
+                    bettor_account.key() == bet.bettor,
+                    BattleError::InvalidBettorAccount
+                );
+                
+                // Calculate prize share
+                let prize_share = (bet.amount as u128 * prize_pool as u128 / total_winning_bets as u128) as u64;
+                let total_payout = bet.amount + prize_share;
+                
+                // Transfer prize directly to bettor
+                **ctx.accounts.house_wallet.to_account_info().try_borrow_mut_lamports()? -= total_payout;
+                **bettor_account.try_borrow_mut_lamports()? += total_payout;
+                
+                // Mark as claimed and update totals
+                bet.claimed = true;
+                total_claimed += total_payout;
+                claimed_count += 1;
+                
+                msg!(
+                    "Prize sent - Bettor: {}, Amount: {}, Prize Share: {}",
+                    bet.bettor,
+                    bet.amount,
+                    prize_share
+                );
+            }
+        }
+        
+        if total_claimed > 0 {
+            msg!(
+                "Total prizes distributed - Match: {}, Count: {}, Total Amount: {}",
+                match_id,
+                claimed_count,
+                total_claimed
+            );
+        } else {
+            msg!("No unclaimed prizes found");
+        }
 
         Ok(())
     }
 
     pub fn claim_refund(ctx: Context<ClaimRefund>, match_id: String) -> Result<()> {
         require!(!ctx.accounts.house_wallet.paused, BattleError::ProgramPaused);
+        require!(ctx.accounts.authority.key() == ctx.accounts.house_wallet.authority, BattleError::Unauthorized);
         
         let match_account = &mut ctx.accounts.match_account;
         require!(match_account.match_id == match_id, BattleError::InvalidMatchId);
         require!(match_account.status == MatchStatus::Refund, BattleError::NotRefundable);
         
-        let bet = match_account.bets.iter_mut()
-            .find(|bet| bet.bettor == ctx.accounts.claimer.key())
-            .ok_or(BattleError::NoBet)?;
-            
-        require!(!bet.claimed, BattleError::AlreadyClaimed);
-
-        let seeds = &[
-            b"house".as_ref(),
-            &[ctx.accounts.house_wallet.bump],
-        ];
-        let signer = &[&seeds[..]];
-
-        // Refund the bet amount
-        invoke_signed(
-            &system_instruction::transfer(
-                ctx.accounts.house_wallet.to_account_info().key,
-                ctx.accounts.claimer.key,
-                bet.amount,
-            ),
-            &[
-                ctx.accounts.house_wallet.to_account_info(),
-                ctx.accounts.claimer.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-            signer,
-        )?;
-
-        bet.claimed = true;
-
-        msg!(
-            "Refund claimed - Match: {}, Amount: {}",
-            match_id,
-            bet.amount
-        );
+        // Process all unclaimed refunds
+        let mut remaining_accounts = ctx.remaining_accounts.iter();
+        let mut total_refunded = 0;
+        let mut refunded_count = 0;
+        
+        for bet in match_account.bets.iter_mut() {
+            if !bet.claimed {
+                // Get bettor's account from remaining accounts
+                let bettor_account = next_account_info(&mut remaining_accounts)
+                    .map_err(|_| error!(BattleError::InvalidRemainingAccounts))?;
+                
+                require!(
+                    bettor_account.key() == bet.bettor,
+                    BattleError::InvalidBettorAccount
+                );
+                
+                // Transfer refund directly to bettor
+                **ctx.accounts.house_wallet.to_account_info().try_borrow_mut_lamports()? -= bet.amount;
+                **bettor_account.try_borrow_mut_lamports()? += bet.amount;
+                
+                // Mark as claimed and update totals
+                bet.claimed = true;
+                total_refunded += bet.amount;
+                refunded_count += 1;
+                
+                msg!(
+                    "Refund sent - Bettor: {}, Amount: {}",
+                    bet.bettor,
+                    bet.amount
+                );
+            }
+        }
+        
+        if total_refunded > 0 {
+            msg!(
+                "Total refunds distributed - Match: {}, Count: {}, Total Amount: {}",
+                match_id,
+                refunded_count,
+                total_refunded
+            );
+        } else {
+            msg!("No unclaimed refunds found");
+        }
 
         Ok(())
     }
@@ -318,8 +353,11 @@ pub struct ClaimPrize<'info> {
     #[account(mut)]
     pub house_wallet: Account<'info, HouseWallet>,
     
+    /// CHECK: This account will receive the fee
     #[account(mut)]
-    pub claimer: Signer<'info>,
+    pub treasury: AccountInfo<'info>,
+    
+    pub authority: Signer<'info>,
     
     pub system_program: Program<'info, System>,
 }
@@ -332,8 +370,7 @@ pub struct ClaimRefund<'info> {
     #[account(mut)]
     pub house_wallet: Account<'info, HouseWallet>,
     
-    #[account(mut)]
-    pub claimer: Signer<'info>,
+    pub authority: Signer<'info>,
     
     pub system_program: Program<'info, System>,
 }
@@ -458,4 +495,8 @@ pub enum BattleError {
     InvalidStatusTransition,
     #[msg("Invalid status")]
     InvalidStatus,
+    #[msg("Invalid remaining accounts")]
+    InvalidRemainingAccounts,
+    #[msg("Invalid bettor account")]
+    InvalidBettorAccount,
 }

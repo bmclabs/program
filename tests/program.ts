@@ -169,15 +169,22 @@ describe("battle_memecoin", () => {
     try {
       const balanceBefore = await provider.connection.getBalance(bettorKeypair.publicKey);
 
+      // Get all winning bettors
+      const matchState = await program.account.matchAccount.fetch(matchAccount.publicKey);
+      const winningBettors = matchState.bets
+        .filter(bet => !bet.claimed && bet.fighter === matchState.winner)
+        .map(bet => ({ pubkey: bet.bettor, isWritable: true, isSigner: false }));
+
       const tx = await program.methods
         .claimPrize(matchId)
         .accounts({
           matchAccount: matchAccount.publicKey,
           houseWallet: houseWallet,
-          claimer: bettorKeypair.publicKey,
+          treasury: provider.wallet.publicKey,
+          authority: provider.wallet.publicKey,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
-        .signers([bettorKeypair])
+        .remainingAccounts(winningBettors)
         .rpc();
 
       console.log("Claim prize transaction signature", tx);
@@ -195,19 +202,32 @@ describe("battle_memecoin", () => {
 
   it("Cannot claim prize twice", async () => {
     try {
-      await program.methods
+      // Get all winning bettors (should be empty now)
+      const matchState = await program.account.matchAccount.fetch(matchAccount.publicKey);
+      const winningBettors = matchState.bets
+        .filter(bet => !bet.claimed && bet.fighter === matchState.winner)
+        .map(bet => ({ pubkey: bet.bettor, isWritable: true, isSigner: false }));
+
+      const tx = await program.methods
         .claimPrize(matchId)
         .accounts({
           matchAccount: matchAccount.publicKey,
           houseWallet: houseWallet,
-          claimer: bettorKeypair.publicKey,
+          treasury: provider.wallet.publicKey,
+          authority: provider.wallet.publicKey,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
-        .signers([bettorKeypair])
+        .remainingAccounts(winningBettors)
         .rpc();
-      expect.fail("Should not be able to claim twice");
+
+      console.log("Second claim attempt transaction signature", tx);
+      
+      const updatedMatch = await program.account.matchAccount.fetch(matchAccount.publicKey);
+      const unclaimedBets = updatedMatch.bets.filter(bet => !bet.claimed && bet.fighter === updatedMatch.winner);
+      expect(unclaimedBets.length).to.equal(0);
     } catch (error) {
-      expect(error.message).to.include("AlreadyClaimed");
+      console.error("Error:", error);
+      throw error;
     }
   });
 
