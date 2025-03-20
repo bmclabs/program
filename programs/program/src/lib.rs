@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{program::{invoke, invoke_signed}, system_instruction};
+use anchor_lang::solana_program::{program::invoke, system_instruction};
 
 declare_id!("HsgW2W2TfkLWzd1VEmZjZhGdj3CadyEkCbV3qPgvzCbM");
 
@@ -290,11 +290,11 @@ pub mod battle_memecoin {
         Ok(())
     }
 
-    pub fn create_match_account(ctx: Context<CreateMatchAccount>) -> Result<()> {
+    pub fn create_match_account(ctx: Context<CreateMatchAccount>, match_id: String, fighter1: String, fighter2: String) -> Result<()> {
         let match_account = &mut ctx.accounts.match_account;
-        match_account.match_id = String::new();
-        match_account.fighter1 = String::new();
-        match_account.fighter2 = String::new();
+        match_account.match_id = match_id.clone();
+        match_account.fighter1 = fighter1.clone();
+        match_account.fighter2 = fighter2.clone();
         match_account.total_bets_fighter1 = 0;
         match_account.total_bets_fighter2 = 0;
         match_account.status = MatchStatus::Preparation;
@@ -302,7 +302,7 @@ pub mod battle_memecoin {
         match_account.prize_pool = 0;
         match_account.bets = Vec::new();
         
-        msg!("Match account created");
+        msg!("Match account created with ID: {}, Fighter1: {}, Fighter2: {}", match_id, fighter1, fighter2);
         Ok(())
     }
 }
