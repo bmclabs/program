@@ -75,7 +75,28 @@ Steps to use this program:
    $ npm run set-pause-state -- --paused false
 
    # Show help for set-pause-state options
-   $ npm run set-pause-state -- --help
+   $ npm run set-pause-state -- --hel
+
+9. Emergency Operations:
+   # Perform emergency refund for a match
+   $ npm run emergency-refund -- --matchaccount <MATCH_ACCOUNT_PUBLIC_KEY> --matchid MATCH_001
+
+   # Show help for emergency operations
+   $ npm run emergency-refund -- --help
+
+10. House Wallet Transfer CPI:
+   # Transfer SOL from house wallet to recipient
+   $ npm run house-wallet-transfer-cpi -- --recipient <RECIPIENT_PUBLIC_KEY> --amount <AMOUNT> --programid <PROGRAM_ID> --url <RPC_URL> --keypair <PATH_TO_AUTHORITY_KEYPAIR>
+
+11. Reclaim Prize:
+   # Reclaim prize for a bettor
+   $ npm run reclaim-prize -- --matchaccount <MATCH_ACCOUNT_PUBLIC_KEY> --matchid MATCH_001 --bettor <BETTOR_PUBLIC_KEY> --keypair <PATH_TO_AUTHORITY_KEYPAIR>
+
+   # Show help for reclaim-prize options
+   $ npm run reclaim-prize -- --help
+
+   # Show help for house wallet transfer options
+   $ npm run house-wallet-transfer-cpi -- --help
 
 Command Examples After Creating a Match:
 When you run create-match, it will output commands that you can copy and paste
@@ -93,6 +114,7 @@ place-bet:
   --matchid, -m       Match ID                    [string] [default: "MATCH_001"]
   --fighter, -f       Fighter to bet on           [string] [default: "DOGE"]
   --amount, -amt      Bet amount in SOL           [number] [default: 0.1]
+  --keypair, -k       Path to keypair file (bettor) [string]
 
 update-status:
   --matchaccount, -a  Match account public key    [string] [required]
@@ -115,6 +137,31 @@ claim-refund:
 
 set-pause-state:
   --paused, -p        Set program to paused state  [boolean] [default: true]
+
+initialize:
+  --keypair, -k       Path to keypair file         [string]
+
+emergency-refund:
+  --matchaccount, -a  Match account public key    [string] [required]
+  --matchid, -m       Match ID                    [string] [required]
+  --keypair, -k       Path to keypair file (authority) [string]
+
+reclaim-prize:
+  --matchaccount, -a  Match account public key    [string] [required]
+  --matchid, -m       Match ID                    [string] [required]
+  --bettor, -b        Public key of the bettor to reclaim prize for [string] [required]
+  --keypair, -k       Path to keypair file (authority) [string]
+
+house-wallet-transfer-cpi:
+  --recipient, -r     Recipient public key         [string] [required]
+  --amount, -amt      Amount to transfer           [number] [required]
+  --programid, -p     Program ID                  [string] [default: "3dBYh1pjekocsJQGXM3y1MW6bjVrvvnCXpVEZTffGvmC"]
+  --url, -u           RPC URL                     [string] [default: "https://api.devnet.solana.com"]
+  --keypair, -k       Path to keypair file (authority) [string]
+
+get-match:
+  --matchaccount, -a  Match account public key    [string] [required]
+  --keypair, -k       Path to keypair file (authority) [string]
 
 Notes:
 - Ensure wallet has enough SOL (via 'npm run setup')

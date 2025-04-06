@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as os from 'os';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import idl from "../target/idl/battle_memecoin.json";
+import idl from "../target/idl/battle_memecoin_club.json";
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -31,7 +31,7 @@ async function main() {
   }
   
   // Set up wallet path
-  const walletPath = path.join(os.homedir(), '.config', 'solana', 'test-authority.json');
+  const walletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
 
   // Set wallet path
   process.env.ANCHOR_WALLET = walletPath;

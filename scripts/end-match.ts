@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as os from 'os';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import idl from "../target/idl/battle_memecoin.json";
+import idl from "../target/idl/battle_memecoin_club.json";
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -17,20 +17,17 @@ const argv = yargs(hideBin(process.argv))
   .option('matchaccount', {
     alias: 'a',
     description: 'Match account public key',
-    type: 'string',
-    demandOption: true
+    type: 'string'
   })
   .option('matchid', {
     alias: 'm',
     description: 'Match ID',
-    type: 'string',
-    default: 'MATCH_001'
+    type: 'string'
   })
   .option('winner', {
     alias: 'w',
     description: 'Winner fighter name',
-    type: 'string',
-    default: 'DOGE'
+    type: 'string'
   })
   .help()
   .alias('help', 'h')
@@ -43,7 +40,7 @@ async function main() {
   }
   
   // Set up wallet path using os.homedir() to avoid tilde (~) issues
-  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'test-authority.json');
+  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
   
   // Check if wallet file exists
   if (!fs.existsSync(defaultWalletPath)) {

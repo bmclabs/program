@@ -26,11 +26,11 @@ const argv = yargs(hideBin(process.argv))
     type: 'string',
     default: 'MATCH_001'
   })
-  .option('winners', {
-    alias: 'w',
-    description: 'Comma-separated list of winner public keys to claim prizes for',
+  .option('bettor', {
+    alias: 'b',
+    description: 'Public key of the bettor to reclaim prize for',
     type: 'string',
-    default: ''
+    demandOption: true
   })
   .help()
   .alias('help', 'h')
@@ -63,6 +63,15 @@ async function main() {
     // Use match account from command line args
     const matchAccount = new PublicKey(argv.matchaccount);
     
+    // Parse bettor public key
+    let bettorPubkey;
+    try {
+      bettorPubkey = new PublicKey(argv.bettor);
+    } catch (e) {
+      console.error(`Error: Invalid bettor public key format: ${argv.bettor}`);
+      process.exit(1);
+    }
+    
     // Find PDA for house wallet
     const [houseWallet] = await PublicKey.findProgramAddress(
       [Buffer.from("house")],
@@ -74,7 +83,7 @@ async function main() {
     if (houseInfo) {
       const houseData = program.coder.accounts.decode('houseWallet', houseInfo.data);
       if (houseData.paused) {
-        console.error("Error: Program is currently paused. Cannot claim prizes.");
+        console.error("Error: Program is currently paused. Cannot reclaim prize.");
         console.log("To unpause: npm run set-pause-state -- --paused false");
         process.exit(1);
       }
@@ -104,7 +113,7 @@ async function main() {
         console.log(`Tip: End the match first:`);
         console.log(`npm run end-match -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid} --winner <FIGHTER_NAME>`);
       } else if (currentStatus === 'refund') {
-        console.log(`This match is in "Refund" state. Use claim-refund instead of claim-prize:`);
+        console.log(`This match is in "Refund" state. Use claim-refund instead of reclaim-prize:`);
         console.log(`npm run claim-refund -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
       }
       process.exit(1);
@@ -116,58 +125,37 @@ async function main() {
       process.exit(1);
     }
     
-    console.log(`Preparing to claim prizes for match ${argv.matchid} (${matchAccount.toString()})`);
+    console.log(`Preparing to reclaim prize for match ${argv.matchid} (${matchAccount.toString()})`);
     console.log(`Match winner is: ${matchData.winner}`);
+    console.log(`Bettor: ${bettorPubkey.toString()}`);
     
-    // Get winners from command line or from match data
-    let winnerAccounts = [];
+    // Find the specific bettor in the bet list
+    const bettorBet = matchData.bets.find(bet => 
+      !bet.claimed && 
+      bet.fighter === matchData.winner && 
+      bet.bettor.toString() === bettorPubkey.toString()
+    );
     
-    if (argv.winners && argv.winners.trim() !== '') {
-      // Parse comma-separated winners from command line
-      const specifiedWinners = argv.winners.split(',').map(addr => {
-        try {
-          return new PublicKey(addr.trim());
-        } catch (e) {
-          console.error(`Invalid public key: ${addr.trim()}`);
-          process.exit(1);
-        }
-      });
-      
-      winnerAccounts = specifiedWinners.map(pubkey => ({
-        pubkey,
-        isWritable: true,
-        isSigner: false
-      }));
-      
-      console.log(`Processing prizes for ${winnerAccounts.length} specified winners.`);
-    } else {
-      // Get all winners from match data
-      winnerAccounts = matchData.bets
-        .filter(bet => !bet.claimed && bet.fighter === matchData.winner)
-        .map(bet => ({
-          pubkey: new PublicKey(bet.bettor),
-          isWritable: true,
-          isSigner: false
-        }));
-      
-      console.log(`Processing prizes for all ${winnerAccounts.length} unclaimed winners.`);
+    if (!bettorBet) {
+      console.error(`Error: Bettor ${bettorPubkey.toString()} either does not have an unclaimed bet or did not bet on the winning fighter.`);
+      process.exit(1);
     }
     
-    if (winnerAccounts.length === 0) {
-      console.log("No winners to process prizes for.");
-      process.exit(0);
-    }
+    const betAmount = bettorBet.amount / anchor.web3.LAMPORTS_PER_SOL;
+    console.log(`Bettor has an unclaimed bet of ${betAmount} SOL on ${bettorBet.fighter}`);
     
-    // Log winners being processed
-    for (const account of winnerAccounts) {
-      console.log(`- ${account.pubkey.toString()}`);
-    }
+    // Add bettor to remaining accounts
+    const remainingAccounts = [{
+      pubkey: bettorPubkey,
+      isWritable: true,
+      isSigner: false
+    }];
     
-    // Execute claim prize transaction
-    console.log(`\nClaiming prizes for match ${argv.matchid}...`);
+    // Execute reclaim prize transaction
+    console.log(`\nReclaiming prize for bettor ${bettorPubkey.toString()}...`);
     
     const tx = await program.methods
-      .claimPrize(argv.matchid)
+      .reclaimPrize(argv.matchid, bettorPubkey)
       .accounts({
         matchAccount: matchAccount,
         houseWallet: houseWallet,
@@ -175,11 +163,12 @@ async function main() {
         authority: provider.wallet.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
-      .remainingAccounts(winnerAccounts)
+      .remainingAccounts(remainingAccounts)
       .rpc();
     
     console.log("Transaction signature:", tx);
-    console.log("Successfully processed prizes. Check balances of winners to confirm.");
+    console.log("Successfully reclaimed prize. Check balance of bettor to confirm.");
+    
   } catch (error) {
     console.error("Error:", error);
     
@@ -189,11 +178,17 @@ async function main() {
     } else if (error.toString().includes("InvalidMatchId")) {
       console.error("The match ID does not match. Make sure you're using the correct match ID.");
     } else if (error.toString().includes("InvalidRemainingAccounts")) {
-      console.error("Invalid winner accounts. Make sure the provided public keys are valid winners of this match.");
+      console.error("Invalid bettor account. Make sure the provided public key is valid.");
     } else if (error.toString().includes("ProgramPaused")) {
       console.error("The program is currently paused. Unpause it using 'npm run set-pause-state -- --paused false'.");
     } else if (error.toString().includes("Unauthorized")) {
-      console.error("You are not authorized to claim prizes. Only the program authority can do this.");
+      console.error("You are not authorized to reclaim prizes. Only the program authority can do this.");
+    } else if (error.toString().includes("NoBet")) {
+      console.error("No unclaimed bet found for this bettor.");
+    } else if (error.toString().includes("InsufficientFunds")) {
+      console.error("Insufficient funds in house wallet to pay the prize.");
+    } else if (error.toString().includes("TransferFailed")) {
+      console.error("Failed to transfer funds. This may be due to system issues.");
     }
     
     process.exit(1);

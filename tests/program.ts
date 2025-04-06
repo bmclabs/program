@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { BattleMemecoin } from "../target/types/battle_memecoin";
+import { BattleMemecoinClub } from "../target/types/battle_memecoin_club";
 import { PublicKey, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
 
@@ -8,7 +8,7 @@ describe("battle_memecoin", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const program = anchor.workspace.battleMemecoin as Program<BattleMemecoin>;
+  const program = anchor.workspace.battleMemecoin as Program<BattleMemecoinClub>;
   
   let houseWallet: PublicKey;
   let houseBump: number;

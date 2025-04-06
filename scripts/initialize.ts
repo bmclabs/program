@@ -4,11 +4,24 @@ import { PublicKey, Keypair } from "@solana/web3.js";
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import idl from "../target/idl/battle_memecoin.json";
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+import idl from "../target/idl/battle_memecoin_club.json";
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
+
+// Parse command line arguments
+const argv = yargs(hideBin(process.argv))
+  .option('keypair', {
+    alias: 'k',
+    description: 'Path to keypair file (authority)',
+    type: 'string'
+  })
+  .help()
+  .alias('help', 'h')
+  .parse();
 
 async function main() {
   // ensure environment variables are set
@@ -17,7 +30,17 @@ async function main() {
   }
   
   // Set up wallet path
-  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'test-authority.json');
+  let defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
+  
+  // Use custom keypair if provided
+  if (argv.keypair) {
+    if (fs.existsSync(argv.keypair)) {
+      defaultWalletPath = argv.keypair;
+    } else {
+      console.log(`Keypair file not found at ${argv.keypair}`);
+      process.exit(1);
+    }
+  }
   
   // Check if wallet file exists, if not create one
   if (!fs.existsSync(defaultWalletPath)) {
@@ -45,7 +68,19 @@ async function main() {
   // Use the wallet path we just verified/created
   process.env.ANCHOR_WALLET = defaultWalletPath;
 
-  const provider = anchor.AnchorProvider.env();
+  // Create custom provider with the specified keypair
+  const wallet = new anchor.Wallet(
+    anchor.web3.Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(fs.readFileSync(defaultWalletPath, 'utf-8')))
+    )
+  );
+  
+  const provider = new anchor.AnchorProvider(
+    new anchor.web3.Connection(process.env.ANCHOR_PROVIDER_URL),
+    wallet,
+    { commitment: 'confirmed' }
+  );
+  
   anchor.setProvider(provider);
 
   const program = new Program(idl as any, provider);
@@ -69,6 +104,7 @@ async function main() {
     .rpc();
   
   console.log("Initialization transaction signature:", tx);
+  console.log(`Success: House wallet initialized with authority ${provider.wallet.publicKey.toString()}`);
 }
 
 main().catch(err => {
