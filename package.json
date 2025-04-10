@@ -6,11 +6,10 @@
     "setup": "./scripts/setup.sh",
     "test": "anchor test",
     "build": "anchor build",
-    "deploy": "anchor deploy",
-    "custom-deploy": "node scripts/deploy.js",
+    "deploy": "solana program deploy ./target/deploy/program.so",
     "initialize": "ts-node scripts/initialize.ts",
-    "create-match": "ts-node scripts/create-match.ts",
     "get-match": "ts-node scripts/get-match.ts",
+    "create-match": "ts-node scripts/create-match.ts",
     "place-bet": "ts-node scripts/place-bet.ts",
     "update-status": "ts-node scripts/update-status.ts",
     "end-match": "ts-node scripts/end-match.ts",
@@ -20,10 +19,12 @@
     "set-pause-state": "ts-node scripts/set-pause-state.ts",
     "emergency-refund": "ts-node scripts/emergency-refund.ts",
     "house-wallet-transfer-cpi": "node scripts/house-wallet-transfer-cpi.js",
-    "help": "node scripts/help.js"
+    "help": "node scripts/help.js",
+    "close-match": "ts-node scripts/close-match.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.0",
+    "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
     "yargs": "^17.7.2"
   },

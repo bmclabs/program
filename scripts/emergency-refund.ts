@@ -42,7 +42,7 @@ async function main() {
   }
   
   // Set up wallet path using os.homedir() to avoid tilde (~) issues
-  let walletPath = path.join(os.homedir(), '.config', 'solana', 'test-authority.json');
+  let walletPath = path.join(os.homedir(), '.config', 'solana', 'arena-authority.json');
   
   // Use custom keypair if provided
   if (argv.keypair) {
@@ -176,6 +176,9 @@ async function main() {
     console.log("Transaction signature:", tx);
     console.log(`Success: Emergency refund initiated for match ${argv.matchid}.`);
     console.log(`All eligible bettors have been refunded.`);
+
+    console.log("\nTo use this match in other commands:");
+    console.log(`npm run close-match -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
     
   } catch (error) {
     console.error("Error:", error);

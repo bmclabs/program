@@ -166,6 +166,8 @@ async function main() {
     
     console.log("Transaction signature:", tx);
     console.log("Successfully processed refunds. Check balances of bettors to confirm.");
+    console.log("\nTo use this match in other commands:");
+    console.log(`npm run close-match -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
   } catch (error) {
     console.error("Error:", error);
     

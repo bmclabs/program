@@ -28,15 +28,15 @@ const argv = yargs(hideBin(process.argv))
   })
   .option('programid', {
     alias: 'p',
-    description: 'Program ID (default: 3dBYh1pjekocsJQGXM3y1MW6bjVrvvnCXpVEZTffGvmC)',
+    description: 'Program ID (default: F5wQsBbjHAViAimLojNZRCxdecvHnUTfWqKnLCz2Bdho)',
     type: 'string',
-    default: '3dBYh1pjekocsJQGXM3y1MW6bjVrvvnCXpVEZTffGvmC'
+    default: 'F5wQsBbjHAViAimLojNZRCxdecvHnUTfWqKnLCz2Bdho'
   })
   .option('url', {
     alias: 'u',
     description: 'RPC URL for Solana connection',
     type: 'string',
-    default: 'https://api.devnet.solana.com'
+    default: 'https://api.mainnet-beta.solana.com'
   })
   .help()
   .alias('help', 'h')
@@ -44,7 +44,7 @@ const argv = yargs(hideBin(process.argv))
 
 async function main() {
   // Set up wallet path using os.homedir() to avoid tilde (~) issues
-  let walletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
+  let walletPath = path.join(os.homedir(), '.config', 'solana', 'arena-authority.json');
   
   // Use custom keypair if provided
   if (argv.keypair) {

@@ -75,7 +75,7 @@ Steps to use this program:
    $ npm run set-pause-state -- --paused false
 
    # Show help for set-pause-state options
-   $ npm run set-pause-state -- --hel
+   $ npm run set-pause-state -- --help
 
 9. Emergency Operations:
    # Perform emergency refund for a match
@@ -84,11 +84,18 @@ Steps to use this program:
    # Show help for emergency operations
    $ npm run emergency-refund -- --help
 
-10. House Wallet Transfer CPI:
+10. Close Match Account:
+   # Close a match account and reclaim rent
+   $ npm run close-match -- --matchaccount <MATCH_ACCOUNT_PUBLIC_KEY> --matchid MATCH_001
+
+   # Show help for close-match options
+   $ npm run close-match -- --help
+
+11. House Wallet Transfer CPI:
    # Transfer SOL from house wallet to recipient
    $ npm run house-wallet-transfer-cpi -- --recipient <RECIPIENT_PUBLIC_KEY> --amount <AMOUNT> --programid <PROGRAM_ID> --url <RPC_URL> --keypair <PATH_TO_AUTHORITY_KEYPAIR>
 
-11. Reclaim Prize:
+12. Reclaim Prize:
    # Reclaim prize for a bettor
    $ npm run reclaim-prize -- --matchaccount <MATCH_ACCOUNT_PUBLIC_KEY> --matchid MATCH_001 --bettor <BETTOR_PUBLIC_KEY> --keypair <PATH_TO_AUTHORITY_KEYPAIR>
 
@@ -145,6 +152,10 @@ emergency-refund:
   --matchaccount, -a  Match account public key    [string] [required]
   --matchid, -m       Match ID                    [string] [required]
   --keypair, -k       Path to keypair file (authority) [string]
+
+close-match:
+  --matchaccount, -a  Match account public key    [string] [required]
+  --matchid, -m       Match ID                    [string] [required]
 
 reclaim-prize:
   --matchaccount, -a  Match account public key    [string] [required]

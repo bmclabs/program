@@ -43,7 +43,7 @@ async function main() {
   }
   
   // Set up wallet path using os.homedir() to avoid tilde (~) issues
-  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
+  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'arena-authority.json');
   
   // Check if wallet file exists
   if (!fs.existsSync(defaultWalletPath)) {
@@ -106,6 +106,7 @@ async function main() {
       } else if (currentStatus === 'refund') {
         console.log(`This match is in "Refund" state. Use claim-refund instead of claim-prize:`);
         console.log(`npm run claim-refund -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
+        console.log(`npm run close-match -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
       }
       process.exit(1);
     }

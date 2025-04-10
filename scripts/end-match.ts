@@ -40,7 +40,7 @@ async function main() {
   }
   
   // Set up wallet path using os.homedir() to avoid tilde (~) issues
-  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
+  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'arena-authority.json');
   
   // Check if wallet file exists
   if (!fs.existsSync(defaultWalletPath)) {
@@ -123,6 +123,7 @@ async function main() {
     console.log(`Match ended successfully with ${argv.winner} as winner!`);
     console.log(`\nNext steps:`);
     console.log(`- To claim prizes: npm run claim-prize -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
+    console.log(`- To close the match: npm run close-match -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
   } catch (error) {
     console.error("Error:", error);
     

@@ -114,8 +114,20 @@ async function main() {
   }
   
   try {
-    // Use match account from command line args
-    const matchAccount = new PublicKey(argv.matchaccount);
+    // Use match account from command line args or derive it from match ID
+    let matchAccount: PublicKey;
+    
+    // If matchaccount is provided, use it directly
+    if (argv.matchaccount) {
+      matchAccount = new PublicKey(argv.matchaccount);
+    } else {
+      // Otherwise derive PDA from match ID
+      [matchAccount] = await PublicKey.findProgramAddress(
+        [Buffer.from("match"), Buffer.from(argv.matchid)],
+        program.programId
+      );
+      console.log(`Derived match account PDA: ${matchAccount.toString()}`);
+    }
     
     // Find PDA for house wallet
     const [houseWallet] = await PublicKey.findProgramAddress(

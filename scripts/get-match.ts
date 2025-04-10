@@ -90,8 +90,10 @@ async function main() {
       console.log(`OR: npm run end-match -- --matchaccount ${matchAccount.toString()} --matchid ${matchData.matchId} --winner ${matchData.fighter2 || 'Fighter2'}`);
     } else if (status === 'completed') {
       console.log(`Claim prize: npm run claim-prize -- --matchaccount ${matchAccount.toString()} --matchid ${matchData.matchId}`);
+      console.log(`Close match: npm run close-match -- --matchaccount ${matchAccount.toString()} --matchid ${matchData.matchId}`);
     } else if (status === 'refund') {
       console.log(`Claim refund: npm run claim-refund -- --matchaccount ${matchAccount.toString()} --matchid ${matchData.matchId}`);
+      console.log(`Close match: npm run close-match -- --matchaccount ${matchAccount.toString()} --matchid ${matchData.matchId}`);
     }
     
   } catch (error) {

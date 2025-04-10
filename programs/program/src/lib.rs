@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{program::invoke, system_instruction};
 
-declare_id!("3dBYh1pjekocsJQGXM3y1MW6bjVrvvnCXpVEZTffGvmC");
+declare_id!("F5wQsBbjHAViAimLojNZRCxdecvHnUTfWqKnLCz2Bdho");
 
 #[program]
 pub mod battle_memecoin_club {
@@ -36,6 +36,7 @@ pub mod battle_memecoin_club {
         match_account.winner = None;
         match_account.prize_pool = 0;
         match_account.bets = Vec::new();
+        match_account.bump = ctx.bumps.match_account;
         
         msg!("Match account created with ID: {}, Fighter1: {}, Fighter2: {}", match_id, fighter1, fighter2);
         Ok(())
@@ -124,11 +125,14 @@ pub mod battle_memecoin_club {
         Ok(())
     }
 
-    pub fn update_match_status(ctx: Context<UpdateMatchStatus>, status: String) -> Result<()> {
+    pub fn update_match_status(ctx: Context<UpdateMatchStatus>, status: String, match_id: String) -> Result<()> {
         require!(!ctx.accounts.house_wallet.paused, BattleError::ProgramPaused);
         require!(is_authorized(ctx.accounts.authority.key(), &ctx.accounts.house_wallet), BattleError::Unauthorized);
         
         let match_account = &mut ctx.accounts.match_account;
+        
+        // Verify match ID
+        require!(match_account.match_id == match_id, BattleError::InvalidMatchId);
         
         match status.as_str() {
             "Battle" => {
@@ -592,6 +596,38 @@ pub mod battle_memecoin_club {
 
         Ok(())
     }
+
+    pub fn close_match_account(ctx: Context<CloseMatchAccount>, match_id: String) -> Result<()> {
+        require!(is_authorized(ctx.accounts.authority.key(), &ctx.accounts.house_wallet), BattleError::Unauthorized);
+        
+        let match_account = &ctx.accounts.match_account;
+        require!(match_account.match_id == match_id, BattleError::InvalidMatchId);
+        
+        // Match must be completed or refunded to be closed
+        require!(
+            match_account.status == MatchStatus::Completed || match_account.status == MatchStatus::Refund,
+            BattleError::MatchNotFinalized
+        );
+        
+        // If completed, all prizes must be claimed
+        if match_account.status == MatchStatus::Completed {
+            let all_claimed = match_account.bets.iter().all(|bet| {
+                bet.claimed || 
+                match_account.winner.as_ref().map_or(false, |winner| bet.fighter != *winner)
+            });
+            
+            require!(all_claimed, BattleError::UnclaimedPrizes);
+        }
+        
+        // If refunded, all refunds must be claimed
+        if match_account.status == MatchStatus::Refund {
+            let all_claimed = match_account.bets.iter().all(|bet| bet.claimed);
+            require!(all_claimed, BattleError::UnclaimedRefunds);
+        }
+        
+        msg!("Match account closed: {}", match_id);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -611,8 +647,13 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: String, fighter: String, amount: u64)]
 pub struct PlaceBet<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"match", match_id.as_bytes()],
+        bump = match_account.bump
+    )]
     pub match_account: Account<'info, MatchAccount>,
     
     #[account(mut)]
@@ -625,8 +666,13 @@ pub struct PlaceBet<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: String, winner: String)]
 pub struct EndMatch<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"match", match_id.as_bytes()],
+        bump = match_account.bump
+    )]
     pub match_account: Account<'info, MatchAccount>,
     
     #[account(mut)]
@@ -642,8 +688,13 @@ pub struct EndMatch<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: String)]
 pub struct ClaimPrize<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"match", match_id.as_bytes()],
+        bump = match_account.bump
+    )]
     pub match_account: Account<'info, MatchAccount>,
     
     #[account(mut)]
@@ -659,8 +710,13 @@ pub struct ClaimPrize<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: String)]
 pub struct ClaimRefund<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"match", match_id.as_bytes()],
+        bump = match_account.bump
+    )]
     pub match_account: Account<'info, MatchAccount>,
     
     #[account(mut)]
@@ -680,8 +736,13 @@ pub struct SetPauseState<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(status: String, match_id: String)]
 pub struct UpdateMatchStatus<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"match", match_id.as_bytes()],
+        bump = match_account.bump
+    )]
     pub match_account: Account<'info, MatchAccount>,
     
     #[account(mut)]
@@ -691,8 +752,15 @@ pub struct UpdateMatchStatus<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: String, fighter1: String, fighter2: String)]
 pub struct CreateMatchAccount<'info> {
-    #[account(init, payer = authority, space = 8 + MatchAccount::SPACE)]
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + MatchAccount::SPACE,
+        seeds = [b"match", match_id.as_bytes()],
+        bump
+    )]
     pub match_account: Account<'info, MatchAccount>,
     
     #[account(mut)]
@@ -705,8 +773,13 @@ pub struct CreateMatchAccount<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(match_id: String)]
 pub struct EmergencyRefund<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"match", match_id.as_bytes()],
+        bump = match_account.bump
+    )]
     pub match_account: Account<'info, MatchAccount>,
     
     #[account(mut)]
@@ -729,6 +802,26 @@ pub struct TransferFromHouseWallet<'info> {
     /// CHECK: This account will receive the funds
     #[account(mut)]
     pub recipient: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(match_id: String)]
+pub struct CloseMatchAccount<'info> {
+    #[account(
+        mut,
+        seeds = [b"match", match_id.as_bytes()],
+        bump = match_account.bump,
+        close = authority
+    )]
+    pub match_account: Account<'info, MatchAccount>,
+    
+    #[account(mut)]
+    pub house_wallet: Account<'info, HouseWallet>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
 }
 
 #[account]
@@ -754,6 +847,7 @@ pub struct MatchAccount {
     pub winner: Option<String>,
     pub prize_pool: u64,
     pub bets: Vec<Bet>,
+    pub bump: u8,
 }
 
 impl MatchAccount {
@@ -767,7 +861,8 @@ impl MatchAccount {
         11 + // winner (Option<String>)
         8 + // prize_pool
         4 + // Vec length (u32)
-        (80 * 100); // Space for up to 100 bets (~8,000 bytes)
+        (80 * 100) + // Space for up to 100 bets (~8,000 bytes)
+        1;  // bump
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -840,6 +935,12 @@ pub enum BattleError {
     TransferFailed,
     #[msg("Insufficient funds")]
     InsufficientFunds,
+    #[msg("Match is not finalized")]
+    MatchNotFinalized,
+    #[msg("There are unclaimed prizes")]
+    UnclaimedPrizes,
+    #[msg("There are unclaimed refunds")]
+    UnclaimedRefunds,
 }
 
 // Helper functions

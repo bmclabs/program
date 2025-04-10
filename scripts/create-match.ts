@@ -98,35 +98,39 @@ async function main() {
       }
     }
     
-    // Generate a new keypair for the match account
-    const matchAccount = anchor.web3.Keypair.generate();
+    // Find PDA for match account
+    const [matchAccount] = await PublicKey.findProgramAddress(
+      [Buffer.from("match"), Buffer.from(argv.matchid)],
+      program.programId
+    );
+    
     console.log(`Creating match:`);
     console.log(`- Match ID: ${argv.matchid}`);
     console.log(`- Fighter 1: ${argv.fighter1}`);
     console.log(`- Fighter 2: ${argv.fighter2}`);
-    console.log("Match account:", matchAccount.publicKey.toString());
+    console.log("Match account (PDA):", matchAccount.toString());
     
     // Create match account
     const tx = await program.methods
       .createMatchAccount(argv.matchid, argv.fighter1, argv.fighter2)
       .accounts({
-        matchAccount: matchAccount.publicKey,
+        matchAccount: matchAccount,
         authority: provider.wallet.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
         houseWallet: houseWallet,
       })
-      .signers([matchAccount])
       .rpc();
     
     console.log("Transaction signature:", tx);
     console.log(`\nMatch created successfully!`);
     
     console.log("\nTo use this match in other commands:");
-    console.log(`npm run place-bet -- --matchaccount ${matchAccount.publicKey.toString()} --matchid ${argv.matchid} --fighter ${argv.fighter1}`);
-    console.log(`npm run update-status -- --matchaccount ${matchAccount.publicKey.toString()}`);
-    console.log(`npm run end-match -- --matchaccount ${matchAccount.publicKey.toString()} --matchid ${argv.matchid} --winner ${argv.fighter1}`);
-    console.log(`npm run claim-prize -- --matchaccount ${matchAccount.publicKey.toString()} --matchid ${argv.matchid}`);
-    console.log(`npm run claim-refund -- --matchaccount ${matchAccount.publicKey.toString()} --matchid ${argv.matchid}`);
+    console.log(`npm run place-bet -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid} --fighter ${argv.fighter1}`);
+    console.log(`npm run update-status -- --matchaccount ${matchAccount.toString()}`);
+    console.log(`npm run end-match -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid} --winner ${argv.fighter1}`);
+    console.log(`npm run claim-prize -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
+    console.log(`npm run claim-refund -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
+    console.log(`npm run close-match -- --matchaccount ${matchAccount.toString()} --matchid ${argv.matchid}`);
   } catch (error) {
     console.error("Error:", error);
     

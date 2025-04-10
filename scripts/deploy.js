@@ -8,7 +8,8 @@ const os = require('os');
 const programName = 'program';
 const programPath = path.join(__dirname, '..', 'target', 'deploy', `${programName}.so`);
 const programKeypairPath = path.join(__dirname, '..', 'target', 'deploy', `${programName}-keypair.json`);
-const walletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
+const walletPath = path.join(os.homedir(), '.config', 'solana', 'arena-authority.json');
+const url = process.env.ANCHOR_PROVIDER_URL;
 
 // Verify files exist
 if (!fs.existsSync(programPath)) {
@@ -28,31 +29,24 @@ if (!fs.existsSync(walletPath)) {
 }
 
 try {
-  console.log('Deploying program to devnet...');
+  console.log('Deploying program to mainnet...');
   
   // Try deploying directly with increased program space
   console.log('Deploying with increased program space...');
   
   const deployOutput = execSync(
-    `solana program deploy ${programPath} --program-id ${programKeypairPath} --keypair ${walletPath} --url devnet`,
-    { encoding: 'utf-8' }
+    `solana program deploy ${programPath} --program-id ${programKeypairPath} --keypair ${walletPath} --url ${url}`,
+    { encoding: 'utf-8', stdio: 'inherit' }
   );
   
-  console.log(deployOutput);
+  // This will only execute if the above command doesn't throw
   console.log('Program deployed successfully!');
   
 } catch (error) {
   console.error('Deployment failed:');
   console.error(error.toString());
   
-  // Try to provide more helpful error message
-  if (error.stdout) {
-    console.error('Command output:', error.stdout.toString());
-  }
-  
-  if (error.stderr) {
-    console.error('Command error output:', error.stderr.toString());
-  }
-  
+  // No need for these checks since we're using stdio: 'inherit'
+  // We'll leave a simpler error handler
   process.exit(1);
 } 

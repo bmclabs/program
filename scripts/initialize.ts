@@ -30,7 +30,7 @@ async function main() {
   }
   
   // Set up wallet path
-  let defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
+  let defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'arena-authority.json');
   
   // Use custom keypair if provided
   if (argv.keypair) {

@@ -38,7 +38,7 @@ async function main() {
   }
   
   // Set up wallet path using os.homedir() to avoid tilde (~) issues
-  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'authority-test.json');
+  const defaultWalletPath = path.join(os.homedir(), '.config', 'solana', 'arena-authority.json');
   
   // Check if wallet file exists
   if (!fs.existsSync(defaultWalletPath)) {
@@ -121,7 +121,7 @@ async function main() {
     
     // Update match status - only Battle is valid per lib.rs
     const tx = await program.methods
-      .updateMatchStatus(argv.status)
+      .updateMatchStatus(argv.status, matchData.matchId)
       .accounts({
         matchAccount: matchAccount,
         houseWallet: houseWallet,
